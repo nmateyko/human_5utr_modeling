@@ -1,4 +1,5 @@
 *.csv
 *.hdf5
 *.png
+*.pkl
 env/
