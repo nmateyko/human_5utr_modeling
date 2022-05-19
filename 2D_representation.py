@@ -44,5 +44,22 @@ def one_hot_2D(seqs, bp_dict):
 
 random_seqs = [random.choices(['A', 'T', 'G', 'C'], k=50) for i in range(200000)]
 
-repr2D = one_hot_2D(random_seqs, bp_dict)
-print(repr2D[0])
+# repr2D = one_hot_2D(random_seqs, bp_dict)
+# print(repr2D[0])
+
+# Assumes all sequences in seqs are the same length
+def structure_2D(seqs):
+  result = []
+  l = len(seqs[0])
+  diag_zeros = np.ones((l, l))
+  for i in range(-3, 4):
+    diag_zeros *= np.diag(-1 * np.ones(l - abs(i)), i) + 1
+  bp = (('A', 'T'), ('T', 'A'), ('G', 'C'), ('C', 'G'), ('G', 'T'), ('T', 'G'))
+  for i, seq in enumerate(seqs):
+    bp_potential = [int(pair in bp) for pair in product(seq, repeat=2)]
+    bp_2D = np.reshape(bp_potential, (l, l)) * diag_zeros
+    result.append(bp_2D)
+  return np.asarray(result)
+
+# print(structure_2D([['A', 'T', 'G', 'G', 'T', 'A', 'C', 'T', 'C', 'A', 'T']]))
+print(len(structure_2D(random_seqs)))
