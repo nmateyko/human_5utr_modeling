@@ -1,18 +1,23 @@
-import pickle
+import argparse
 import numpy as np
+import pandas as pd
 from itertools import product
-from sklearn.model_selection import train_test_split
-
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
-np.random.seed(1337)
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--train", type=str)
+parser.add_argument("--valid", type=str)
+parser.add_argument("--checkpoint", type=str)
+args = parser.parse_args()
 
 def train_model(data, y, valid, num_filters_1D=(128,128,128), num_filters_2D=(32,64,128),
                 kernel_sizes_1D=(8,8,8), kernel_sizes_2D=((3,3),(3,3),(3,3)),
                 number_nodes_1D=(64,), number_nodes_2D=(64,), number_nodes_end=(128,),
                 dropout_1D=(0.2,), dropout_2D=(0.2,), dropout_end=(0.2,),
-                max_pooling=True, batch_size=32, epochs=3):
+                max_pooling=True, batch_size=32, epochs=3,
+                checkpoint_path='weights.{epoch:02d}-{val_loss:.2f}.hdf5'):
 
     inputs_1D = keras.Input(shape=(50,4), name='sequence')
     x = inputs_1D
@@ -48,11 +53,11 @@ def train_model(data, y, valid, num_filters_1D=(128,128,128), num_filters_2D=(32
     model = keras.Model(inputs=[inputs_1D, inputs_2D], outputs=outputs, name="MRL_predict")
     model.compile(loss='mean_squared_error', optimizer=adam)
 
-    checkpoint_filepath = 'weights.{epoch:02d}-{val_loss:.2f}.hdf5'
+    checkpoint_filepath = checkpoint_path
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_filepath,
         save_weights_only=True,
-        monitor='val_accuracy',
+        monitor='val_loss',
         mode='max',
         save_best_only=True)
 
@@ -84,7 +89,7 @@ def structure_2D(seqs):
     '''
     Creates a matrix of sequence x sequence with a 1 for any nucleotide pair that could
     potentially base pair and a 0 for any pair that could not base pair. Pairs must be AT,
-    GC, or GU wobble (GT here because sequences contain T). The pair must be seaparated by
+    GC, or GU wobble (GT here because sequences contain T). The pair must be separated by
     at least 3 nucleotides to be considered a potential base pair interaction.
     '''
     result = []
@@ -99,12 +104,14 @@ def structure_2D(seqs):
         result.append(bp_2D)
     return np.asarray(result)
 
-with open('egfp_unmod_1_split_data.pkl', 'rb') as f:
-    train, valid, test = pickle.load(f)
-with open('egfp_unmod_1_split_one_hot.pkl', 'rb') as f:
-    train_one_hot, valid_one_hot, test_one_hot = pickle.load(f)
-with open('egfp_unmod_1_split_structure.pkl', 'rb') as f:
-    train_structure, valid_structure, test_structure = pickle.load(f)
+train = pd.read_csv(args.train)
+valid = pd.read_csv(args.valid)
+
+train_one_hot = one_hot_encode(train, seq_len=50)
+valid_one_hot = one_hot_encode(valid, seq_len=50)
+
+train_structure = structure_2D(train['utr'])
+valid_structure = structure_2D(valid['utr'])
 
 model, history = train_model((train_one_hot, train_structure), train['scaled_rl'],
                              valid=(valid_one_hot, valid_structure, valid['scaled_rl']),
@@ -112,4 +119,5 @@ model, history = train_model((train_one_hot, train_structure), train['scaled_rl'
                              kernel_sizes_1D=(8,8,8), kernel_sizes_2D=((3,3),(3,3),(3,3)),
                              number_nodes_1D=(64,), number_nodes_2D=(128,), number_nodes_end=(128,),
                              dropout_1D=(0.2,), dropout_2D=(0.2,), dropout_end=(0.2,),
-                             max_pooling=True, batch_size=32, epochs=1)
+                             max_pooling=True, batch_size=32, epochs=1, checkpoint_path=args.checkpoint)
+
