@@ -2,5 +2,7 @@
 *.hdf5
 *.png
 *.pkl
+*.npy
+*.gz
 env/
 *checkpoint.ipynb
