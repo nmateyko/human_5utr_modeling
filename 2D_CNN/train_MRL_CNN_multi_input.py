@@ -7,9 +7,10 @@ from tensorflow import keras
 from tensorflow.keras import layers
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--train", type=str)
-parser.add_argument("--valid", type=str)
+parser.add_argument("--data_path", type=str)
 parser.add_argument("--checkpoint", type=str)
+parser.add_argument("--epochs", type=int)
+parser.add_argument("--history", type=str)
 args = parser.parse_args()
 
 def train_model(data, y, valid, num_filters_1D=(128,128,128), num_filters_2D=(32,64,128),
@@ -56,7 +57,7 @@ def train_model(data, y, valid, num_filters_1D=(128,128,128), num_filters_2D=(32
     checkpoint_filepath = checkpoint_path
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_filepath,
-        save_weights_only=True,
+        save_weights_only=False,
         monitor='val_loss',
         mode='max',
         save_best_only=True)
@@ -74,7 +75,7 @@ def one_hot_encode(df, col='utr', seq_len=50):
     # Dictionary returning one-hot encoding of nucleotides. 
     nuc_d = {'a':[1,0,0,0],'c':[0,1,0,0],'g':[0,0,1,0],'t':[0,0,0,1], 'n':[0,0,0,0]}
     
-    # Creat empty matrix.
+    # Create empty matrix.
     vectors=np.empty([len(df),seq_len,4])
     
     # Iterate through UTRs and one-hot encode
@@ -104,20 +105,27 @@ def structure_2D(seqs):
         result.append(bp_2D)
     return np.asarray(result)
 
-train = pd.read_csv(args.train)
-valid = pd.read_csv(args.valid)
+train = pd.read_csv(f'{args.data_path}/train.csv')
+valid = pd.read_csv(f'{args.data_path}/valid.csv')
 
-train_one_hot = one_hot_encode(train, seq_len=50)
-valid_one_hot = one_hot_encode(valid, seq_len=50)
+train_one_hot = np.load(f'{args.data_path}/onehot_train.npy')
+valid_one_hot = np.load(f'{args.data_path}/onehot_valid.npy')
 
-train_structure = structure_2D(train['utr'])
-valid_structure = structure_2D(valid['utr'])
+train_structure = np.load(f'{args.data_path}/structure_train.npy')
+valid_structure = np.load(f'{args.data_path}/structure_valid.npy')
 
-model, history = train_model((train_one_hot, train_structure), train['scaled_rl'],
-                             valid=(valid_one_hot, valid_structure, valid['scaled_rl']),
+train_structure = np.expand_dims(train_structure, axis=3)
+valid_structure = np.expand_dims(valid_structure, axis=3)
+
+model, history = train_model((train_one_hot, train_structure), np.asarray(train['scaled_rl']),
+                             valid=(valid_one_hot, valid_structure, np.asarray(valid['scaled_rl'])),
                              num_filters_1D=(128,128,128), num_filters_2D=(32,64,128),
                              kernel_sizes_1D=(8,8,8), kernel_sizes_2D=((3,3),(3,3),(3,3)),
                              number_nodes_1D=(64,), number_nodes_2D=(128,), number_nodes_end=(128,),
                              dropout_1D=(0.2,), dropout_2D=(0.2,), dropout_end=(0.2,),
-                             max_pooling=True, batch_size=32, epochs=1, checkpoint_path=args.checkpoint)
+                             max_pooling=True, batch_size=32, epochs=args.epochs, checkpoint_path=args.checkpoint)
 
+with open(args.history, 'w') as f:
+  f.write(str(history.history['loss']))
+  f.write('\n')
+  f.write(str(history.history['val_loss']))
