@@ -59,8 +59,10 @@ def train_model(data, y, valid, num_filters_1D=(128,128,128), num_filters_2D=(32
         filepath=checkpoint_filepath,
         save_weights_only=False,
         monitor='val_loss',
-        mode='max',
+        mode='min',
         save_best_only=True)
+
+    print(model.summary())
 
     history = model.fit({'sequence': data[0], 'structure': data[1]}, y,
                         batch_size=batch_size, epochs=epochs, verbose=1,
