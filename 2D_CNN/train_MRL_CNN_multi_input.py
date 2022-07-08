@@ -11,6 +11,7 @@ parser.add_argument("--data_path", type=str)
 parser.add_argument("--checkpoint", type=str)
 parser.add_argument("--epochs", type=int)
 parser.add_argument("--history", type=str)
+parser.add_argument("--no_uAUG", action='store_true')
 args = parser.parse_args()
 
 def train_model(data, y, valid, num_filters_1D=(128,128,128), num_filters_2D=(32,64,128),
@@ -107,14 +108,21 @@ def structure_2D(seqs):
         result.append(bp_2D)
     return np.asarray(result)
 
-train = pd.read_csv(f'{args.data_path}/train.csv')
-valid = pd.read_csv(f'{args.data_path}/valid.csv')
+if args.no_uAUG:
+    train = pd.read_csv(f'{args.data_path}/train_no_uAUG.csv')
+    valid = pd.read_csv(f'{args.data_path}/valid_no_uAUG.csv')
+    train_one_hot = np.load(f'{args.data_path}/onehot_train_no_uAUG.npy')
+    valid_one_hot = np.load(f'{args.data_path}/onehot_valid_no_uAUG.npy')
+    train_structure = np.load(f'{args.data_path}/structure_train_no_uAUG.npy')
+    valid_structure = np.load(f'{args.data_path}/structure_valid_no_uAUG.npy')
 
-train_one_hot = np.load(f'{args.data_path}/onehot_train.npy')
-valid_one_hot = np.load(f'{args.data_path}/onehot_valid.npy')
-
-train_structure = np.load(f'{args.data_path}/structure_train.npy')
-valid_structure = np.load(f'{args.data_path}/structure_valid.npy')
+else:
+    train = pd.read_csv(f'{args.data_path}/train.csv')
+    valid = pd.read_csv(f'{args.data_path}/valid.csv')
+    train_one_hot = np.load(f'{args.data_path}/onehot_train.npy')
+    valid_one_hot = np.load(f'{args.data_path}/onehot_valid.npy')
+    train_structure = np.load(f'{args.data_path}/structure_train.npy')
+    valid_structure = np.load(f'{args.data_path}/structure_valid.npy')
 
 train_structure = np.expand_dims(train_structure, axis=3)
 valid_structure = np.expand_dims(valid_structure, axis=3)
